@@ -11,15 +11,16 @@ class GradientOutlinedButton extends StatefulWidget {
     required this.onPressed,
     required this.label,
     this.icon,
+    this.compact = false,
   });
 
   final VoidCallback? onPressed;
   final String label;
   final IconData? icon;
+  final bool compact;
 
   @override
-  State<GradientOutlinedButton> createState() =>
-      _GradientOutlinedButtonState();
+  State<GradientOutlinedButton> createState() => _GradientOutlinedButtonState();
 }
 
 class _GradientOutlinedButtonState extends State<GradientOutlinedButton> {
@@ -38,17 +39,15 @@ class _GradientOutlinedButtonState extends State<GradientOutlinedButton> {
         scale: _isPressed ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
-            vertical: AppSpacing.lg,
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: widget.compact ? 13 : 11,
           ),
           decoration: BoxDecoration(
             color: Colors.transparent,
             borderRadius: AppRadii.brMd,
             border: Border.all(
-              color: isEnabled
-                  ? AppColors.primary
-                  : AppColors.textMuted,
+              color: isEnabled ? AppColors.primary : AppColors.textMuted,
               width: 2,
             ),
           ),
@@ -59,7 +58,7 @@ class _GradientOutlinedButtonState extends State<GradientOutlinedButton> {
               if (widget.icon != null) ...[
                 Icon(
                   widget.icon,
-                  size: 20,
+                  size: 16,
                   color: isEnabled ? AppColors.primary : AppColors.textMuted,
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -67,7 +66,7 @@ class _GradientOutlinedButtonState extends State<GradientOutlinedButton> {
               Text(
                 widget.label,
                 style: GoogleFonts.inter(
-                  fontSize: 16,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: isEnabled ? AppColors.primary : AppColors.textMuted,
                 ),

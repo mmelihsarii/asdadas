@@ -386,6 +386,7 @@ class ProfileScreen extends ConsumerWidget {
                     child: GradientOutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       label: 'İptal',
+                      compact: true,
                     ),
                   ),
                   const SizedBox(width: 9.6),
@@ -396,6 +397,7 @@ class ProfileScreen extends ConsumerWidget {
                         Navigator.pop(context);
                       },
                       label: 'Çıkış Yap',
+                      compact: true,
                     ),
                   ),
                 ],

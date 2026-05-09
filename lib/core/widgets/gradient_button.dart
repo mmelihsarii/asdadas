@@ -16,12 +16,14 @@ class GradientButton extends StatefulWidget {
     required this.label,
     this.isLoading = false,
     this.icon,
+    this.compact = false,
   });
 
   final VoidCallback? onPressed;
   final String label;
   final bool isLoading;
   final IconData? icon;
+  final bool compact;
 
   @override
   State<GradientButton> createState() => _GradientButtonState();
@@ -43,9 +45,9 @@ class _GradientButtonState extends State<GradientButton> {
         scale: _isPressed ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
-            vertical: AppSpacing.lg,
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: widget.compact ? 13 : AppSpacing.md,
           ),
           decoration: BoxDecoration(
             gradient: isEnabled
@@ -62,8 +64,8 @@ class _GradientButtonState extends State<GradientButton> {
             children: [
               if (widget.isLoading)
                 const SizedBox(
-                  height: 20,
-                  width: 20,
+                  height: 18,
+                  width: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
@@ -71,17 +73,13 @@ class _GradientButtonState extends State<GradientButton> {
                 )
               else ...[
                 if (widget.icon != null) ...[
-                  Icon(
-                    widget.icon,
-                    size: 20,
-                    color: Colors.black,
-                  ),
+                  Icon(widget.icon, size: 18, color: Colors.black),
                   const SizedBox(width: AppSpacing.sm),
                 ],
                 Text(
                   widget.label,
                   style: GoogleFonts.inter(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: isEnabled ? Colors.black : Colors.white54,
                   ),

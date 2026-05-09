@@ -6,7 +6,6 @@ import 'package:sahada_dev/core/widgets/empty_state.dart';
 import 'package:sahada_dev/core/widgets/solid_card.dart';
 import 'package:sahada_dev/core/widgets/gradient_avatar_ring.dart';
 import 'package:sahada_dev/core/widgets/gradient_background.dart';
-import 'package:sahada_dev/core/widgets/gradient_button.dart';
 import 'package:sahada_dev/core/widgets/gradient_outlined_button.dart';
 
 class OffersScreen extends StatelessWidget {
@@ -208,7 +207,7 @@ class OffersScreen extends StatelessWidget {
               ),
               const SizedBox(width: 9.6), // 20% reduction from 12px (md)
               Expanded(
-                child: GradientButton(
+                child: GradientOutlinedButton(
                   onPressed: () {
                     // TODO: Accept offer
                   },

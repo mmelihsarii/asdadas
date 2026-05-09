@@ -619,6 +619,7 @@ class MatchListingDetailScreen extends StatelessWidget {
                     child: GradientOutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       label: 'İptal',
+                      compact: true,
                     ),
                   ),
                   const SizedBox(
@@ -631,6 +632,7 @@ class MatchListingDetailScreen extends StatelessWidget {
                         Navigator.pop(context);
                       },
                       label: 'Katıl',
+                      compact: true,
                     ),
                   ),
                 ],
