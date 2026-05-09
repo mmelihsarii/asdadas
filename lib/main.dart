@@ -1,0 +1,21 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app.dart';
+import 'core/config/env_config.dart';
+import 'core/services/supabase_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize environment configuration
+  await EnvConfig.init();
+
+  // Initialize Supabase
+  await SupabaseService.initialize();
+
+  runApp(
+    const ProviderScope(
+      child: SahadaApp(),
+    ),
+  );
+}
