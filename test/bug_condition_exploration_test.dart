@@ -34,7 +34,7 @@ void main() {
           // Current behavior: padding is 16px (AppSpacing.lg)
 
           await tester.pumpWidget(
-            MaterialApp(
+            const MaterialApp(
               home: Scaffold(body: GlassCard(child: Text('Test'))),
             ),
           );
@@ -68,7 +68,7 @@ void main() {
           // Current behavior: padding is 16px (AppSpacing.lg)
 
           await tester.pumpWidget(
-            MaterialApp(
+            const MaterialApp(
               home: Scaffold(body: GlassContainer(child: Text('Test'))),
             ),
           );
@@ -106,7 +106,7 @@ void main() {
           // Current behavior: padding is 12px (AppSpacing.md)
 
           await tester.pumpWidget(
-            MaterialApp(
+            const MaterialApp(
               home: Scaffold(body: GlassSurface(child: Text('Test'))),
             ),
           );

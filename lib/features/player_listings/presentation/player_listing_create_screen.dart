@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:sahada_dev/core/theme/app_colors.dart';
 import 'package:sahada_dev/core/theme/app_radii.dart';
 import 'package:sahada_dev/core/widgets/glass_app_bar.dart';
 import 'package:sahada_dev/core/widgets/solid_card.dart';
 import 'package:sahada_dev/core/widgets/gradient_background.dart';
 import 'package:sahada_dev/core/widgets/gradient_button.dart';
+import 'package:sahada_dev/core/widgets/location_picker.dart';
+import 'package:sahada_dev/data/models/enums.dart';
+import 'package:sahada_dev/data/repositories/player_listings_repository.dart';
 
-class PlayerListingCreateScreen extends StatefulWidget {
+class PlayerListingCreateScreen extends ConsumerStatefulWidget {
   const PlayerListingCreateScreen({super.key});
 
   @override
-  State<PlayerListingCreateScreen> createState() =>
+  ConsumerState<PlayerListingCreateScreen> createState() =>
       _PlayerListingCreateScreenState();
 }
 
-class _PlayerListingCreateScreenState extends State<PlayerListingCreateScreen> {
+class _PlayerListingCreateScreenState
+    extends ConsumerState<PlayerListingCreateScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  String _title = '';
   String _description = '';
   String _location = '';
+  double _lat = 41.0082; // Default Istanbul
+  double _lng = 28.9784; // Default Istanbul
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String _position = 'Forvet';
@@ -62,15 +69,6 @@ class _PlayerListingCreateScreenState extends State<PlayerListingCreateScreen> {
                       children: [
                         _buildSection('TEMEL BİLGİLER', [
                           _buildTextField(
-                            label: 'İlan Başlığı',
-                            hint: 'Örn: Forvet Arıyoruz',
-                            icon: Icons.person_search,
-                            onChanged: (value) => _title = value,
-                          ),
-                          const SizedBox(
-                            height: 9.6,
-                          ), // 20% reduction from AppSpacing.md (12px)
-                          _buildTextField(
                             label: 'Açıklama',
                             hint: 'Aranan oyuncu hakkında detaylı bilgi...',
                             icon: Icons.description_outlined,
@@ -87,6 +85,59 @@ class _PlayerListingCreateScreenState extends State<PlayerListingCreateScreen> {
                             hint: 'Örn: Beşiktaş Sahası',
                             icon: Icons.location_on_outlined,
                             onChanged: (value) => _location = value,
+                          ),
+                          const SizedBox(height: 9.6),
+                          GestureDetector(
+                            onTap: _showLocationPicker,
+                            child: Container(
+                              padding: const EdgeInsets.all(12.8),
+                              decoration: BoxDecoration(
+                                color: AppColors.glassTintLight,
+                                borderRadius: AppRadii.brMd,
+                                border: Border.all(
+                                  color: AppColors.glassBorderSoft,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.map_outlined,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 9.6),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Haritadan Konum Seç',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3.2),
+                                        Text(
+                                          '${_lat.toStringAsFixed(4)}, ${_lng.toStringAsFixed(4)}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: AppColors.textTertiary,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ]),
                         const SizedBox(
@@ -401,10 +452,134 @@ class _PlayerListingCreateScreenState extends State<PlayerListingCreateScreen> {
     );
   }
 
-  void _handleSubmit() {
+  void _handleSubmit() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Implement create player listing
-      Navigator.pop(context);
+      // Validation
+      if (_selectedDate == null || _selectedTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen tarih ve saat seçin')),
+        );
+        return;
+      }
+
+      if (_location.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen konum bilgisi girin')),
+        );
+        return;
+      }
+
+      // Combine date and time for start
+      final availableStart = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+
+      // End time is 3 hours after start (default)
+      final availableEnd = availableStart.add(const Duration(hours: 3));
+
+      // Map skill level to enum
+      SkillLevel skillLevel;
+      switch (_skillLevel) {
+        case 'Başlangıç':
+          skillLevel = SkillLevel.beginner;
+          break;
+        case 'Orta':
+          skillLevel = SkillLevel.intermediate;
+          break;
+        case 'İyi':
+        case 'Profesyonel':
+          skillLevel = SkillLevel.advanced;
+          break;
+        default:
+          skillLevel = SkillLevel.intermediate;
+      }
+
+      // Map position to enum
+      PositionType positionType;
+      switch (_position) {
+        case 'Kaleci':
+          positionType = PositionType.goalkeeper;
+          break;
+        case 'Defans':
+          positionType = PositionType.defender;
+          break;
+        case 'Orta Saha':
+          positionType = PositionType.midfielder;
+          break;
+        case 'Forvet':
+          positionType = PositionType.forward;
+          break;
+        case 'Kanat':
+          positionType =
+              PositionType.forward; // Map to forward since winger doesn't exist
+          break;
+        default:
+          positionType = PositionType.forward;
+      }
+
+      try {
+        // Show loading
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('İlan oluşturuluyor...')),
+          );
+        }
+
+        // Create player listing
+        await ref.read(playerListingsRepositoryProvider).create({
+          'notes': _description.isNotEmpty ? _description : null,
+          'center_lat': _lat,
+          'center_lng': _lng,
+          'radius_km': 10, // Default 10km radius
+          'available_start': availableStart.toIso8601String(),
+          'available_end': availableEnd.toIso8601String(),
+          'positions': [positionType.toString().split('.').last],
+          'skill_level': skillLevel.toString().split('.').last,
+          'preferred_formats': ['fiveVsFive'], // Default format
+          'ask_price': 0, // Free by default
+        });
+
+        if (mounted) {
+          // Invalidate explore listings to refresh
+          ref.invalidate(playerListingsRepositoryProvider);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('İlan başarıyla oluşturuldu!'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Hata: ${e.toString()}'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
     }
+  }
+
+  void _showLocationPicker() {
+    showDialog(
+      context: context,
+      builder: (context) => LocationPicker(
+        initialLocation: LatLng(_lat, _lng),
+        onLocationSelected: (location) {
+          setState(() {
+            _lat = location.latitude;
+            _lng = location.longitude;
+          });
+        },
+      ),
+    );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/errors/error_handler.dart';
+import '../../core/errors/app_exception.dart';
 import '../models/models.dart';
 
 part 'reviews_repository.g.dart';
@@ -14,44 +16,57 @@ class ReviewsRepository {
 
   /// Create a review
   Future<Review> create(Map<String, dynamic> data) async {
-    final userId = SupabaseService.instance.currentUserId;
-    if (userId == null) throw Exception('Kullanıcı girişi gerekli');
+    try {
+      final userId = SupabaseService.instance.currentUserId;
+      if (userId == null) {
+        throw const AuthException(
+          message: 'Kullanıcı girişi gerekli',
+          code: 'NOT_AUTHENTICATED',
+        );
+      }
 
-    data['reviewer_id'] = userId;
+      data['reviewer_id'] = userId;
 
-    final response = await _supabase
-        .from('reviews')
-        .insert(data)
-        .select()
-        .single();
+      final response = await _supabase
+          .from('reviews')
+          .insert(data)
+          .select()
+          .single();
 
-    return Review.fromJson(response);
+      return Review.fromJson(response);
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Get reviews for a user
   Future<List<Review>> getUserReviews(String userId) async {
-    final response = await _supabase
-        .from('reviews')
-        .select()
-        .eq('reviewee_id', userId)
-        .order('created_at', ascending: false);
+    try {
+      final response = await _supabase
+          .from('reviews')
+          .select()
+          .eq('reviewee_id', userId)
+          .order('created_at', ascending: false);
 
-    return (response as List)
-        .map((json) => Review.fromJson(json))
-        .toList();
+      return (response as List).map((json) => Review.fromJson(json)).toList();
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Get reviews for a match
   Future<List<Review>> getMatchReviews(String matchId) async {
-    final response = await _supabase
-        .from('reviews')
-        .select()
-        .eq('match_id', matchId)
-        .order('created_at', ascending: false);
+    try {
+      final response = await _supabase
+          .from('reviews')
+          .select()
+          .eq('match_id', matchId)
+          .order('created_at', ascending: false);
 
-    return (response as List)
-        .map((json) => Review.fromJson(json))
-        .toList();
+      return (response as List).map((json) => Review.fromJson(json)).toList();
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Check if user has reviewed another user for a match
@@ -59,17 +74,21 @@ class ReviewsRepository {
     required String matchId,
     required String revieweeId,
   }) async {
-    final userId = SupabaseService.instance.currentUserId;
-    if (userId == null) return false;
+    try {
+      final userId = SupabaseService.instance.currentUserId;
+      if (userId == null) return false;
 
-    final response = await _supabase
-        .from('reviews')
-        .select()
-        .eq('match_id', matchId)
-        .eq('reviewer_id', userId)
-        .eq('reviewee_id', revieweeId)
-        .maybeSingle();
+      final response = await _supabase
+          .from('reviews')
+          .select()
+          .eq('match_id', matchId)
+          .eq('reviewer_id', userId)
+          .eq('reviewee_id', revieweeId)
+          .maybeSingle();
 
-    return response != null;
+      return response != null;
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 }

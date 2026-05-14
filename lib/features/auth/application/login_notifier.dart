@@ -12,6 +12,8 @@ class LoginNotifier extends StateNotifier<LoginState> {
 
   final AuthService _authService;
 
+  static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+
   void setAuthMode(AuthMode mode) {
     state = state.copyWith(authMode: mode, error: null);
   }
@@ -37,24 +39,12 @@ class LoginNotifier extends StateNotifier<LoginState> {
   }
 
   void resetToPhoneStep() {
-    state = state.copyWith(
-      step: LoginStep.phone,
-      otp: '',
-      error: null,
-      devCode: null,
-    );
+    state = state.copyWith(step: LoginStep.phone, otp: '', error: null);
   }
 
-  bool _validatePhone() {
-    final digits = state.phone.replaceAll(RegExp(r'\D'), '');
-    if (digits.length != 10) {
-      state = state.copyWith(
-        error: 'Lütfen geçerli bir numara girin. Format: (5XX) XXX XX XX',
-      );
-      return false;
-    }
-    if (!digits.startsWith('5')) {
-      state = state.copyWith(error: 'Telefon numarası 5 ile başlamalıdır.');
+  bool _validateEmail() {
+    if (!_emailRegex.hasMatch(state.email.trim().toLowerCase())) {
+      state = state.copyWith(error: 'Lütfen geçerli bir e-posta adresi girin.');
       return false;
     }
     return true;
@@ -65,57 +55,51 @@ class LoginNotifier extends StateNotifier<LoginState> {
       state = state.copyWith(error: 'Lütfen ad ve soyad girin.');
       return false;
     }
-    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-    if (!emailRegex.hasMatch(state.email.trim().toLowerCase())) {
-      state = state.copyWith(error: 'Lütfen geçerli bir e-posta adresi girin.');
-      return false;
-    }
-    return true;
+    return _validateEmail();
   }
 
   Future<void> handlePhoneSubmit() async {
-    state = state.copyWith(error: null, devCode: null);
+    state = state.copyWith(error: null);
 
-    // TEMPORARILY DISABLED - Phone verification bypassed
-    // if (!_validatePhone()) return;
-
-    if (state.authMode == AuthMode.signup) {
-      if (!_validateSignupFields()) return;
-    } else {
-      // For login, just validate email
-      final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-      if (!emailRegex.hasMatch(state.email.trim().toLowerCase())) {
-        state = state.copyWith(
-          error: 'Lütfen geçerli bir e-posta adresi girin.',
-        );
-        return;
-      }
+    final isSignup = state.authMode == AuthMode.signup;
+    if (isSignup ? !_validateSignupFields() : !_validateEmail()) {
+      return;
     }
 
     state = state.copyWith(isLoading: true);
 
     try {
-      // DEVELOPMENT MODE - Generate a mock OTP code
-      final mockOtpCode = '123456'; // Fixed code for development
-      print('═══════════════════════════════════════════════════');
-      print('🔐 DEVELOPMENT MODE - EMAIL OTP CODE');
-      print('═══════════════════════════════════════════════════');
-      print('Email: ${state.email.trim().toLowerCase()}');
-      print('OTP Code: $mockOtpCode');
-      print('═══════════════════════════════════════════════════');
+      final email = state.email.trim().toLowerCase();
+      final fullName = '${state.firstName.trim()} ${state.lastName.trim()}'
+          .trim();
 
-      // TEMPORARILY DISABLED - Email OTP sending
-      // await _authService.signInWithEmailOtp(state.email.trim().toLowerCase());
+      await _authService.signInWithEmailOtp(
+        email,
+        shouldCreateUser: isSignup,
+        metadata: isSignup
+            ? {
+                'name': fullName,
+                'display_name': fullName,
+                'first_name': state.firstName.trim(),
+                'last_name': state.lastName.trim(),
+                'phone': state.phone.trim().isEmpty
+                    ? email
+                    : state.phone.trim(),
+              }
+            : null,
+      );
 
       state = state.copyWith(
         step: LoginStep.otp,
         otp: '',
         isLoading: false,
-        devCode: mockOtpCode, // Show code in UI
         error: null,
       );
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
+      state = state.copyWith(
+        error: 'Kod gönderilemedi: ${_friendlyAuthError(e)}',
+        isLoading: false,
+      );
     }
   }
 
@@ -123,33 +107,38 @@ class LoginNotifier extends StateNotifier<LoginState> {
     state = state.copyWith(error: null, isLoading: true);
 
     try {
-      // DEVELOPMENT MODE - Mock OTP verification
-      if (state.otp == '123456') {
-        print('✅ OTP verification successful (DEV MODE)');
+      final email = state.email.trim().toLowerCase();
+      await _authService.verifyOtp(email, state.otp);
 
-        // Başarılı - router otomatik yönlendirecek
-        state = state.copyWith(isLoading: false);
-        return true;
-      } else {
-        state = state.copyWith(
-          error: 'Geçersiz kod. Lütfen 123456 kodunu girin (DEV MODE)',
-          isLoading: false,
-        );
-        return false;
-      }
-
-      // REAL IMPLEMENTATION (commented out for dev mode)
-      // final digits = state.phone.replaceAll(RegExp(r'\D'), '');
-      // final fullPhone = '+90$digits';
-      // await _authService.verifyOtp(fullPhone, state.otp);
-      // state = state.copyWith(isLoading: false);
-      // return true;
+      state = state.copyWith(isLoading: false);
+      return true;
     } catch (e) {
       state = state.copyWith(
-        error: 'Doğrulama başarısız: ${e.toString()}',
+        error: 'Doğrulama başarısız: ${_friendlyAuthError(e)}',
         isLoading: false,
       );
       return false;
     }
+  }
+
+  String _friendlyAuthError(Object error) {
+    final message = error.toString();
+    final lower = message.toLowerCase();
+
+    if (lower.contains('rate limit') ||
+        lower.contains('over_email_send_rate_limit') ||
+        lower.contains('too many')) {
+      return 'E-posta gönderim limiti doldu. Son gelen kodu kullanın veya kısa süre sonra tekrar deneyin.';
+    }
+
+    if (lower.contains('otp') || lower.contains('token')) {
+      return 'Kod hatalı veya süresi dolmuş olabilir.';
+    }
+
+    if (lower.contains('signup') || lower.contains('user not found')) {
+      return 'Bu e-posta için hesap bulunamadı. Önce kayıt olun.';
+    }
+
+    return message;
   }
 }

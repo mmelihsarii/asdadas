@@ -77,7 +77,7 @@ void main() {
         bool callbackExecuted = false;
 
         await tester.pumpWidget(
-          MaterialApp(
+          const MaterialApp(
             home: Scaffold(
               body: GradientButton(
                 onPressed: null, // Disabled button
@@ -142,15 +142,11 @@ void main() {
       // This ensures loading state visual behavior is preserved
       // NOTE: Current implementation shows spinner but does NOT prevent tap callback
 
-      int callbackExecutionCount = 0;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: GradientButton(
-              onPressed: () {
-                callbackExecutionCount++;
-              },
+              onPressed: () {},
               label: 'Loading Button',
               isLoading: true,
             ),
@@ -455,7 +451,7 @@ void main() {
         bool callbackExecuted = false;
 
         await tester.pumpWidget(
-          MaterialApp(
+          const MaterialApp(
             home: Scaffold(
               body: GradientOutlinedButton(
                 onPressed: null, // Disabled button
@@ -759,7 +755,7 @@ void main() {
         // This ensures accessibility of disabled state is preserved
 
         await tester.pumpWidget(
-          MaterialApp(
+          const MaterialApp(
             home: Scaffold(
               body: Column(
                 children: [
@@ -866,11 +862,9 @@ void main() {
       print('\n=== BUTTON PRESERVATION TEST COVERAGE ===\n');
       buttonPreservationCoverage.forEach((category, tests) {
         print('$category:');
-        if (tests is Map) {
-          tests.forEach((test, status) {
-            print('  - $test: $status');
-          });
-        }
+        tests.forEach((test, status) {
+          print('  - $test: $status');
+        });
         print('');
       });
       print('=== END OF BUTTON PRESERVATION COVERAGE ===\n');

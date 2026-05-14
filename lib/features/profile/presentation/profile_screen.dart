@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sahada_dev/core/services/auth_service.dart';
 import 'package:sahada_dev/core/theme/app_colors.dart';
 import 'package:sahada_dev/core/theme/app_radii.dart';
 import 'package:sahada_dev/core/theme/glass_tokens.dart';
@@ -10,49 +12,95 @@ import 'package:sahada_dev/core/widgets/gradient_background.dart';
 import 'package:sahada_dev/core/widgets/gradient_button.dart';
 import 'package:sahada_dev/core/widgets/gradient_outlined_button.dart';
 import 'package:sahada_dev/core/widgets/solid_card.dart';
+import 'package:sahada_dev/features/profile/application/current_user_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // TODO: Get user data from provider
-    final mockUser = {
-      'firstName': 'Ahmet',
-      'lastName': 'Yılmaz',
-      'phone': '+90 555 123 4567',
-      'email': 'ahmet@example.com',
-      'position': 'Orta Saha',
-      'skillLevel': 'Orta',
-      'preferredFoot': 'Sağ',
-      'avatarUrl': null,
-    };
+    final userAsync = ref.watch(currentUserProvider);
+    final statsAsync = ref.watch(currentUserStatsProvider);
 
     return Scaffold(
       body: GradientBackground(
         child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              // Header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(12.8),
+          child: userAsync.when(
+            data: (user) {
+              if (user == null) {
+                return Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildHeader(context),
+                      const Icon(
+                        Icons.person_off,
+                        size: 64,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(height: 16),
-                      _buildProfileCard(mockUser),
-                      const SizedBox(height: 12.8),
-                      _buildStatsCard(),
-                      const SizedBox(height: 12.8),
-                      _buildSettingsCard(context),
-                      const SizedBox(height: 12.8),
-                      _buildLogoutButton(context),
+                      Text(
+                        'Kullanıcı bulunamadı',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                );
+              }
+
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.8),
+                      child: Column(
+                        children: [
+                          _buildHeader(context),
+                          const SizedBox(height: 16),
+                          _buildProfileCard(user),
+                          const SizedBox(height: 12.8),
+                          statsAsync.when(
+                            data: (stats) => _buildStatsCard(stats),
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (_, __) => _buildStatsCard({}),
+                          ),
+                          const SizedBox(height: 12.8),
+                          _buildSettingsCard(context),
+                          const SizedBox(height: 12.8),
+                          _buildLogoutButton(context, ref),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppColors.danger,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Hata: $error',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -73,7 +121,7 @@ class ProfileScreen extends ConsumerWidget {
         ),
         GestureDetector(
           onTap: () {
-            // TODO: Navigate to edit profile
+            context.push('/profile/edit');
           },
           child: Container(
             padding: const EdgeInsets.all(6.4),
@@ -88,22 +136,28 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileCard(Map<String, dynamic> user) {
+  Widget _buildProfileCard(user) {
+    final name = user.name ?? 'Kullanıcı';
+    final email = user.email ?? '';
+    final role = user.role ?? 'player';
+    final city = user.city ?? '';
+    final district = user.district ?? '';
+
     return GlassCard(
       intensity: GlassIntensity.regular,
       child: Column(
         children: [
           // Avatar
           GradientAvatarRing(
-            imageUrl: user['avatarUrl'],
+            imageUrl: user.avatarUrl,
             size: 80,
-            initials: '${user['firstName'][0]}${user['lastName'][0]}',
+            initials: name.isNotEmpty ? name[0].toUpperCase() : 'U',
           ),
           const SizedBox(height: 9.6),
 
           // Name
           Text(
-            '${user['firstName']} ${user['lastName']}',
+            name,
             style: GoogleFonts.inter(
               fontSize: 19.2,
               fontWeight: FontWeight.bold,
@@ -112,7 +166,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 3.2),
 
-          // Position badge
+          // Role badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9.6, vertical: 3.2),
             decoration: const BoxDecoration(
@@ -120,7 +174,7 @@ class ProfileScreen extends ConsumerWidget {
               borderRadius: AppRadii.brSm,
             ),
             child: Text(
-              user['position'],
+              role == 'organizer' ? 'Organizatör' : 'Oyuncu',
               style: GoogleFonts.inter(
                 fontSize: 9.6,
                 fontWeight: FontWeight.bold,
@@ -135,17 +189,11 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 12.8),
 
           // Info rows
-          _buildInfoRow(Icons.phone_outlined, 'Telefon', user['phone']),
+          _buildInfoRow(Icons.email_outlined, 'E-posta', email),
           const SizedBox(height: 9.6),
-          _buildInfoRow(Icons.email_outlined, 'E-posta', user['email']),
+          _buildInfoRow(Icons.location_city_outlined, 'Şehir', city),
           const SizedBox(height: 9.6),
-          _buildInfoRow(Icons.sports_outlined, 'Seviye', user['skillLevel']),
-          const SizedBox(height: 9.6),
-          _buildInfoRow(
-            Icons.sports_soccer_outlined,
-            'Tercih Edilen Ayak',
-            user['preferredFoot'],
-          ),
+          _buildInfoRow(Icons.location_on_outlined, 'İlçe', district),
         ],
       ),
     );
@@ -192,7 +240,11 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsCard() {
+  Widget _buildStatsCard(Map<String, dynamic> stats) {
+    final totalMatches = stats['total_matches'] ?? 0;
+    final wonMatches = stats['won_matches'] ?? 0;
+    final rating = stats['rating_avg']?.toStringAsFixed(1) ?? '0.0';
+
     return GlassCard(
       intensity: GlassIntensity.subtle,
       child: Column(
@@ -211,14 +263,22 @@ class ProfileScreen extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: _buildStatItem('Toplam Maç', '24', Icons.sports_soccer),
+                child: _buildStatItem(
+                  'Toplam Maç',
+                  totalMatches.toString(),
+                  Icons.sports_soccer,
+                ),
               ),
               Container(width: 1, height: 40, color: AppColors.glassBorderSoft),
               Expanded(
-                child: _buildStatItem('Kazanılan', '18', Icons.emoji_events),
+                child: _buildStatItem(
+                  'Kazanılan',
+                  wonMatches.toString(),
+                  Icons.emoji_events,
+                ),
               ),
               Container(width: 1, height: 40, color: AppColors.glassBorderSoft),
-              Expanded(child: _buildStatItem('Puan', '4.8', Icons.star)),
+              Expanded(child: _buildStatItem('Puan', rating, Icons.star)),
             ],
           ),
         ],
@@ -270,7 +330,7 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.notifications_outlined,
             title: 'Bildirimler',
             onTap: () {
-              // TODO: Navigate to notifications settings
+              context.push('/notifications');
             },
           ),
           const SizedBox(height: 6.4),
@@ -278,7 +338,12 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.privacy_tip_outlined,
             title: 'Gizlilik',
             onTap: () {
-              // TODO: Navigate to privacy settings
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Gizlilik ayarları yakında eklenecek'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
           ),
           const SizedBox(height: 6.4),
@@ -286,7 +351,12 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.help_outline,
             title: 'Yardım & Destek',
             onTap: () {
-              // TODO: Navigate to help
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Yardım & Destek yakında eklenecek'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
           ),
           const SizedBox(height: 6.4),
@@ -294,7 +364,7 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.info_outline,
             title: 'Hakkında',
             onTap: () {
-              // TODO: Show about dialog
+              _showAboutDialog(context);
             },
           ),
         ],
@@ -311,10 +381,15 @@ class ProfileScreen extends ConsumerWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(9.6),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.glassTintLight,
           borderRadius: AppRadii.brMd,
-          border: Border.all(color: AppColors.glassBorderSoft),
+          border: Border(
+            top: BorderSide(color: AppColors.glassBorderSoft),
+            bottom: BorderSide(color: AppColors.glassBorderSoft),
+            left: BorderSide(color: AppColors.glassBorderSoft),
+            right: BorderSide(color: AppColors.glassBorderSoft),
+          ),
         ),
         child: Row(
           children: [
@@ -341,17 +416,17 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildLogoutButton(BuildContext context, WidgetRef ref) {
     return GradientOutlinedButton(
       onPressed: () {
-        _showLogoutDialog(context);
+        _showLogoutDialog(context, ref);
       },
       label: 'Çıkış Yap',
       icon: Icons.logout,
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -392,9 +467,14 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(width: 9.6),
                   Expanded(
                     child: GradientButton(
-                      onPressed: () {
-                        // TODO: Implement logout
-                        Navigator.pop(context);
+                      onPressed: () async {
+                        // Logout from Supabase
+                        await ref.read(authServiceProvider).signOut();
+
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          context.go('/login');
+                        }
                       },
                       label: 'Çıkış Yap',
                       compact: true,
@@ -406,6 +486,122 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: GlassCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12.8),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.gradientPrimary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.sports_soccer,
+                  size: 32,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12.8),
+              Text(
+                'Sahada',
+                style: GoogleFonts.inter(
+                  fontSize: 19.2,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3.2),
+              Text(
+                'Versiyon 1.0.0',
+                style: GoogleFonts.inter(
+                  fontSize: 11.2,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Futbol tutkunlarını bir araya getiren sosyal platform',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 11.2,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12.8),
+                decoration: const BoxDecoration(
+                  color: AppColors.glassTintLight,
+                  borderRadius: AppRadii.brMd,
+                  border: Border(
+                    top: BorderSide(color: AppColors.glassBorderSoft),
+                    bottom: BorderSide(color: AppColors.glassBorderSoft),
+                    left: BorderSide(color: AppColors.glassBorderSoft),
+                    right: BorderSide(color: AppColors.glassBorderSoft),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    _buildAboutRow(Icons.code, 'Geliştirici', 'Sahada Team'),
+                    const SizedBox(height: 9.6),
+                    _buildAboutRow(Icons.email, 'İletişim', 'info@sahada.app'),
+                    const SizedBox(height: 9.6),
+                    _buildAboutRow(Icons.language, 'Web', 'www.sahada.app'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              GradientButton(
+                onPressed: () => Navigator.pop(context),
+                label: 'Kapat',
+                compact: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: AppColors.textTertiary),
+        const SizedBox(width: 9.6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 8.8,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 11.2,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

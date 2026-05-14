@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/env_config.dart';
 import 'supabase_service.dart';
 
 /// Auth service provider
@@ -85,17 +86,30 @@ class AuthService {
     await _supabase.auth.signInWithOtp(phone: phone, shouldCreateUser: true);
   }
 
-  /// Sign in with email magic link (OTP)
-  Future<void> signInWithEmailOtp(String email) async {
-    await _supabase.auth.signInWithOtp(email: email, shouldCreateUser: true);
+  /// Sign in with email OTP.
+  ///
+  /// `shouldCreateUser` is intentionally explicit so login attempts do not
+  /// accidentally create half-empty users, while signup can pass profile
+  /// metadata to the auth trigger in one place.
+  Future<void> signInWithEmailOtp(
+    String email, {
+    bool shouldCreateUser = false,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _supabase.auth.signInWithOtp(
+      email: email,
+      shouldCreateUser: shouldCreateUser,
+      data: metadata,
+      emailRedirectTo: EnvConfig.authRedirectUrl,
+    );
   }
 
-  /// Verify OTP code
-  Future<AuthResponse> verifyOtp(String phone, String token) async {
+  /// Verify OTP code (email)
+  Future<AuthResponse> verifyOtp(String email, String token) async {
     return await _supabase.auth.verifyOTP(
-      phone: phone,
+      email: email,
       token: token,
-      type: OtpType.sms,
+      type: OtpType.email,
     );
   }
 }

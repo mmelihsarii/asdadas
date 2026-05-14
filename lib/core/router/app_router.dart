@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/services/supabase_service.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/profile/presentation/profile_setup_screen.dart';
@@ -13,32 +16,25 @@ import '../../features/my_matches/presentation/my_matches_screen.dart';
 import '../../features/messages/presentation/messages_list_screen.dart';
 import '../../features/messages/presentation/chat_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/profile/presentation/profile_edit_screen.dart';
 import '../../features/profile/presentation/user_profile_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import 'app_shell.dart';
 
 part 'app_router.g.dart';
 
 @riverpod
 GoRouter goRouter(GoRouterRef ref) {
+  final authRefresh = SupabaseService.isInitialized
+      ? AuthRefreshNotifier(SupabaseService.instance.auth.onAuthStateChange)
+      : null;
+  ref.onDispose(() => authRefresh?.dispose());
+
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
+    refreshListenable: authRefresh,
     redirect: (context, state) {
-      // DEVELOPMENT MODE - Disable authentication checks
-      const isDevelopmentMode = true; // Set to false for production
-
-      if (isDevelopmentMode) {
-        // In dev mode, allow access to all routes except redirect authenticated users from login
-        final isGoingToLogin = state.matchedLocation == '/login';
-        final isAuthenticated = SupabaseService.instance.isAuthenticated;
-
-        if (isAuthenticated && isGoingToLogin) {
-          return '/explore';
-        }
-        return null; // Allow all other routes
-      }
-
-      // PRODUCTION MODE - Normal authentication flow
       final isAuthenticated = SupabaseService.instance.isAuthenticated;
       final isGoingToLogin = state.matchedLocation == '/login';
       final isGoingToRoot = state.matchedLocation == '/';
@@ -158,7 +154,7 @@ GoRouter goRouter(GoRouterRef ref) {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           // TODO: Fetch user name from provider
-          return ChatScreen(userId: id, userName: 'Kullanıcı');
+          return ChatScreen(chatId: id, userName: 'Kullanıcı');
         },
       ),
 
@@ -170,6 +166,32 @@ GoRouter goRouter(GoRouterRef ref) {
           return UserProfileScreen(userId: id);
         },
       ),
+
+      // Profile Edit
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) => const ProfileEditScreen(),
+      ),
+
+      // Notifications
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
     ],
   );
+}
+
+class AuthRefreshNotifier extends ChangeNotifier {
+  AuthRefreshNotifier(Stream<AuthState> authChanges) {
+    _subscription = authChanges.listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<AuthState> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
 }

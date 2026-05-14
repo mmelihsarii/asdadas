@@ -442,11 +442,9 @@ void main() {
       print('Test Results:');
       testResults.forEach((category, results) {
         print('\n$category:');
-        if (results is Map) {
-          results.forEach((key, value) {
-            print('  $key: $value');
-          });
-        }
+        results.forEach((key, value) {
+          print('  $key: $value');
+        });
       });
 
       print('\n=== VERIFICATION POINTS ===\n');

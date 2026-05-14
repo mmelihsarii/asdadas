@@ -11,6 +11,7 @@ import 'package:sahada_dev/core/theme/app_spacing.dart';
 import 'package:sahada_dev/core/widgets/glass_card.dart';
 import 'package:sahada_dev/core/widgets/gradient_background.dart';
 import 'package:sahada_dev/core/widgets/gradient_button.dart';
+import 'package:sahada_dev/data/models/enums.dart';
 import 'package:sahada_dev/features/profile/application/profile_setup_notifier.dart';
 import 'package:sahada_dev/features/profile/application/profile_setup_state.dart';
 

@@ -7,7 +7,7 @@ part 'user_model.g.dart';
 class User with _$User {
   const factory User({
     required String id,
-    required String phone,
+    String? phone, // artık optional
     String? email,
     @JsonKey(name: 'phone_verified_at') DateTime? phoneVerifiedAt,
     @JsonKey(name: 'email_verified_at') DateTime? emailVerifiedAt,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sahada_dev/core/theme/app_colors.dart';
@@ -11,19 +12,20 @@ import 'package:sahada_dev/core/widgets/glass_container.dart';
 import 'package:sahada_dev/core/widgets/gradient_button.dart';
 import 'package:sahada_dev/core/widgets/gradient_outlined_button.dart';
 import 'package:sahada_dev/core/widgets/solid_card.dart';
+import 'package:sahada_dev/features/explore/application/explore_provider.dart';
 
 enum ViewMode { map, list }
 
 enum ListingType { all, matches, players }
 
-class ExploreScreen extends StatefulWidget {
+class ExploreScreen extends ConsumerStatefulWidget {
   const ExploreScreen({super.key});
 
   @override
-  State<ExploreScreen> createState() => _ExploreScreenState();
+  ConsumerState<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen> {
+class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   ViewMode _viewMode = ViewMode.map;
   ListingType _listingType = ListingType.all;
   bool _showFilters = false;
@@ -34,49 +36,65 @@ class _ExploreScreenState extends State<ExploreScreen> {
   // Default location (Istanbul)
   final LatLng _center = const LatLng(41.0082, 28.9784);
 
-  // Mock data - will be replaced with real data
-  final List<Map<String, dynamic>> _mockListings = [
-    {
-      'id': '1',
-      'type': 'match',
-      'title': '5v5 Halı Saha Maçı',
-      'location': 'Kadıköy Spor Kompleksi',
-      'date': '15 Mayıs, 19:00',
-      'price': '₺150',
-      'playersNeeded': 3,
-      'lat': 40.9900,
-      'lng': 29.0250,
-    },
-    {
-      'id': '2',
-      'type': 'player',
-      'title': 'Forvet Arıyoruz',
-      'location': 'Beşiktaş Sahası',
-      'date': '16 Mayıs, 20:00',
-      'position': 'Forvet',
-      'lat': 41.0400,
-      'lng': 29.0100,
-    },
-    {
-      'id': '3',
-      'type': 'match',
-      'title': '7v7 Turnuva Maçı',
-      'location': 'Sarıyer Spor Tesisi',
-      'date': '17 Mayıs, 18:00',
-      'price': '₺200',
-      'playersNeeded': 5,
-      'lat': 41.1500,
-      'lng': 29.0500,
-    },
-  ];
+  // Get filter type string
+  String get _filterTypeString {
+    switch (_listingType) {
+      case ListingType.matches:
+        return 'matches';
+      case ListingType.players:
+        return 'players';
+      case ListingType.all:
+        return 'all';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Watch filtered listings based on current filter
+    final listingsAsync = ref.watch(
+      filteredListingsProvider(_filterTypeString),
+    );
+
     return Scaffold(
       body: Stack(
         children: [
           // Main content (Map or List)
-          _viewMode == ViewMode.map ? _buildMapView() : _buildListView(),
+          listingsAsync.when(
+            data: (listings) => _viewMode == ViewMode.map
+                ? _buildMapView(listings)
+                : _buildListView(listings),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppColors.danger,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'İlanlar yüklenemedi',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    error.toString(),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
 
           // Top controls
           SafeArea(
@@ -110,7 +128,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  Widget _buildMapView() {
+  Widget _buildMapView(List<ExploreListing> listings) {
     return FlutterMap(
       mapController: _mapController,
       options: MapOptions(
@@ -147,24 +165,27 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
         // Markers for listings
         MarkerLayer(
-          markers: _getFilteredListings().map((listing) {
-            return Marker(
-              point: LatLng(listing['lat'], listing['lng']),
-              width: 50,
-              height: 50,
-              child: GestureDetector(
-                onTap: () => _showListingDetail(listing),
-                child: _buildMarker(listing),
-              ),
-            );
-          }).toList(),
+          markers: listings
+              .where((listing) => listing.lat != null && listing.lng != null)
+              .map((listing) {
+                return Marker(
+                  point: LatLng(listing.lat!, listing.lng!),
+                  width: 50,
+                  height: 50,
+                  child: GestureDetector(
+                    onTap: () => _showListingDetail(listing),
+                    child: _buildMarker(listing),
+                  ),
+                );
+              })
+              .toList(),
         ),
       ],
     );
   }
 
-  Widget _buildMarker(Map<String, dynamic> listing) {
-    final isMatch = listing['type'] == 'match';
+  Widget _buildMarker(ExploreListing listing) {
+    final isMatch = listing.type == 'match';
     return Container(
       decoration: BoxDecoration(
         gradient: isMatch
@@ -174,23 +195,64 @@ class _ExploreScreenState extends State<ExploreScreen> {
         boxShadow: [
           BoxShadow(
             color: (isMatch ? AppColors.primaryBright : AppColors.accentCyan)
-                .withValues(alpha: 0.3), // 0.5 * 0.6 = 0.3 (%40 azaltıldı)
-            blurRadius:
-                7.2, // Task 12.7: Reduced from 12px to 7.2px (40% reduction)
-            spreadRadius: 1.2, // 2 * 0.6 = 1.2 (%40 azaltıldı)
+                .withValues(alpha: 0.3),
+            blurRadius: 7.2,
+            spreadRadius: 1.2,
           ),
         ],
       ),
       child: Icon(
         isMatch ? Icons.sports_soccer : Icons.person,
         color: Colors.black,
-        size: 19.2, // Task 12.6: Reduced from 24px to 19.2px (20% reduction)
+        size: 19.2,
       ),
     );
   }
 
-  Widget _buildListView() {
-    final listings = _getFilteredListings();
+  Widget _buildListView(List<ExploreListing> listings) {
+    if (listings.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.backgroundDark,
+              AppColors.backgroundDark.withValues(alpha: 0.95),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.search_off,
+                size: 64,
+                color: AppColors.textTertiary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'İlan bulunamadı',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Henüz bu kategoride ilan yok',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -213,9 +275,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         itemCount: listings.length,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.only(
-              bottom: 9.6,
-            ), // Task 12.6: Reduced from 12px to 9.6px (20% reduction)
+            padding: const EdgeInsets.only(bottom: 9.6),
             child: _buildListingCard(listings[index]),
           );
         },
@@ -412,16 +472,23 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  Widget _buildListingCard(Map<String, dynamic> listing) {
-    final isMatch = listing['type'] == 'match';
+  Widget _buildListingCard(ExploreListing listing) {
+    final isMatch = listing.type == 'match';
 
-    // Task 12.4: Changed from GlassCard to SolidCard for list view
+    // Format date
+    String dateStr = 'Tarih belirtilmemiş';
+    if (listing.dateTime != null) {
+      final date = listing.dateTime!;
+      dateStr =
+          '${date.day} ${_getMonthName(date.month)}, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
+
     return GestureDetector(
       onTap: () => _showListingDetail(listing),
       child: SolidCard(
         child: Row(
           children: [
-            // Icon - Task 12.6: Reduced from 60px to 48px (20% reduction)
+            // Icon
             Container(
               width: 48,
               height: 48,
@@ -434,47 +501,37 @@ class _ExploreScreenState extends State<ExploreScreen> {
               child: Icon(
                 isMatch ? Icons.sports_soccer : Icons.person,
                 color: Colors.black,
-                size:
-                    22.4, // Task 12.6: Reduced from 28px to 22.4px (20% reduction)
+                size: 22.4,
               ),
             ),
-            const SizedBox(
-              width: 9.6,
-            ), // Task 12.6: Reduced from 12px to 9.6px (20% reduction)
+            const SizedBox(width: 9.6),
             // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    listing['title'],
+                    listing.title,
                     style: GoogleFonts.inter(
-                      fontSize:
-                          12.8, // Task 12.6: Reduced from 16px to 12.8px (20% reduction)
+                      fontSize: 12.8,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(
-                    height: 3.2,
-                  ), // Task 12.6: Reduced from 4px to 3.2px (20% reduction)
+                  const SizedBox(height: 3.2),
                   Row(
                     children: [
                       const Icon(
                         Icons.location_on_outlined,
-                        size:
-                            11.2, // Task 12.6: Reduced from 14px to 11.2px (20% reduction)
+                        size: 11.2,
                         color: AppColors.textTertiary,
                       ),
-                      const SizedBox(
-                        width: 1.6,
-                      ), // Task 12.6: Reduced from 2px to 1.6px (20% reduction)
+                      const SizedBox(width: 1.6),
                       Expanded(
                         child: Text(
-                          listing['location'],
+                          listing.location,
                           style: GoogleFonts.inter(
-                            fontSize:
-                                9.6, // Task 12.6: Reduced from 12px to 9.6px (20% reduction)
+                            fontSize: 9.6,
                             color: AppColors.textTertiary,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -482,25 +539,19 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(
-                    height: 1.6,
-                  ), // Task 12.6: Reduced from 2px to 1.6px (20% reduction)
+                  const SizedBox(height: 1.6),
                   Row(
                     children: [
                       const Icon(
                         Icons.access_time,
-                        size:
-                            11.2, // Task 12.6: Reduced from 14px to 11.2px (20% reduction)
+                        size: 11.2,
                         color: AppColors.textTertiary,
                       ),
-                      const SizedBox(
-                        width: 1.6,
-                      ), // Task 12.6: Reduced from 2px to 1.6px (20% reduction)
+                      const SizedBox(width: 1.6),
                       Text(
-                        listing['date'],
+                        dateStr,
                         style: GoogleFonts.inter(
-                          fontSize:
-                              9.6, // Task 12.6: Reduced from 12px to 9.6px (20% reduction)
+                          fontSize: 9.6,
                           color: AppColors.textTertiary,
                         ),
                       ),
@@ -511,45 +562,39 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
 
             // Badge
-            if (isMatch && listing['playersNeeded'] != null)
+            if (isMatch && listing.playersNeeded != null)
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal:
-                      6.4, // Task 12.6: Reduced from 8px to 6.4px (20% reduction)
-                  vertical:
-                      3.2, // Task 12.6: Reduced from 4px to 3.2px (20% reduction)
+                  horizontal: 6.4,
+                  vertical: 3.2,
                 ),
                 decoration: const BoxDecoration(
                   gradient: AppColors.gradientPrimary,
                   borderRadius: AppRadii.brSm,
                 ),
                 child: Text(
-                  '${listing['playersNeeded']} kişi',
+                  '${listing.playersNeeded} kişi',
                   style: GoogleFonts.inter(
-                    fontSize:
-                        8.8, // Task 12.6: Reduced from 11px to 8.8px (20% reduction)
+                    fontSize: 8.8,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
                 ),
               )
-            else if (!isMatch && listing['position'] != null)
+            else if (!isMatch && listing.position != null)
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal:
-                      6.4, // Task 12.6: Reduced from 8px to 6.4px (20% reduction)
-                  vertical:
-                      3.2, // Task 12.6: Reduced from 4px to 3.2px (20% reduction)
+                  horizontal: 6.4,
+                  vertical: 3.2,
                 ),
                 decoration: const BoxDecoration(
                   gradient: AppColors.gradientAccent,
                   borderRadius: AppRadii.brSm,
                 ),
                 child: Text(
-                  listing['position'],
+                  listing.position!,
                   style: GoogleFonts.inter(
-                    fontSize:
-                        8.8, // Task 12.6: Reduced from 11px to 8.8px (20% reduction)
+                    fontSize: 8.8,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
@@ -559,6 +604,24 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
       ),
     );
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık',
+    ];
+    return months[month - 1];
   }
 
   Widget _buildCreateButton() {
@@ -590,23 +653,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  List<Map<String, dynamic>> _getFilteredListings() {
-    if (_listingType == ListingType.all) {
-      return _mockListings;
-    } else if (_listingType == ListingType.matches) {
-      return _mockListings.where((l) => l['type'] == 'match').toList();
-    } else {
-      return _mockListings.where((l) => l['type'] == 'player').toList();
-    }
-  }
+  void _showListingDetail(ExploreListing listing) {
+    final isMatch = listing.type == 'match';
 
-  void _showListingDetail(Map<String, dynamic> listing) {
+    // Format date
+    String dateStr = 'Tarih belirtilmemiş';
+    if (listing.dateTime != null) {
+      final date = listing.dateTime!;
+      dateStr =
+          '${date.day} ${_getMonthName(date.month)}, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        // Task 12.5: Keep GlassCard with regular intensity for modal sheets (overlays - Tier 1)
         child: GlassCard(
           intensity: GlassIntensity.regular,
           child: Column(
@@ -614,33 +676,48 @@ class _ExploreScreenState extends State<ExploreScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                listing['title'],
+                listing.title,
                 style: GoogleFonts.inter(
-                  fontSize:
-                      16, // Task 12.6: Reduced from 20px to 16px (20% reduction)
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(
-                height: 9.6,
-              ), // Task 12.6: Reduced from 12px to 9.6px (20% reduction)
-              _buildDetailRow(Icons.location_on_outlined, listing['location']),
-              const SizedBox(
-                height: 6.4,
-              ), // Task 12.6: Reduced from 8px to 6.4px (20% reduction)
-              _buildDetailRow(Icons.access_time, listing['date']),
-              if (listing['price'] != null) ...[
-                const SizedBox(
-                  height: 6.4,
-                ), // Task 12.6: Reduced from 8px to 6.4px (20% reduction)
-                _buildDetailRow(Icons.payments_outlined, listing['price']),
+              const SizedBox(height: 9.6),
+              _buildDetailRow(Icons.location_on_outlined, listing.location),
+              const SizedBox(height: 6.4),
+              _buildDetailRow(Icons.access_time, dateStr),
+              if (isMatch && listing.playersNeeded != null) ...[
+                const SizedBox(height: 6.4),
+                _buildDetailRow(
+                  Icons.people_outline,
+                  '${listing.playersNeeded} kişi aranıyor',
+                ),
+              ],
+              if (!isMatch && listing.position != null) ...[
+                const SizedBox(height: 6.4),
+                _buildDetailRow(Icons.sports_outlined, listing.position!),
               ],
               const SizedBox(height: AppSpacing.lg),
               GradientButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to detail screen
+                  // Navigate to detail screen based on type
+                  if (isMatch) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Maç detay sayfası yakında eklenecek'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Oyuncu detay sayfası yakında eklenecek'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
                 },
                 label: 'Detayları Gör',
               ),
@@ -699,7 +776,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
               GradientButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to match create screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Maç ilanı oluşturma yakında eklenecek'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
                 },
                 label: 'Maç İlanı Oluştur',
               ),
@@ -709,7 +791,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
               GradientOutlinedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to player create screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Oyuncu ilanı oluşturma yakında eklenecek'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
                 },
                 label: 'Oyuncu İlanı Oluştur',
               ),

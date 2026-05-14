@@ -1,5 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/errors/error_handler.dart';
+import '../../core/errors/app_exception.dart';
 import '../models/models.dart';
 
 part 'player_listings_repository.g.dart';
@@ -16,65 +18,114 @@ class PlayerListingsRepository {
 
   /// Create a new player listing
   Future<PlayerListing> create(Map<String, dynamic> data) async {
-    final userId = SupabaseService.instance.currentUserId;
-    if (userId == null) throw Exception('Kullanıcı girişi gerekli');
+    try {
+      final userId = SupabaseService.instance.currentUserId;
+      if (userId == null) {
+        throw const AuthException(
+          message: 'Kullanıcı girişi gerekli',
+          code: 'NOT_AUTHENTICATED',
+        );
+      }
 
-    data['player_id'] = userId;
+      data['player_id'] = userId;
 
-    final response = await _supabase
-        .from('player_listings')
-        .insert(data)
-        .select()
-        .single();
+      final response = await _supabase
+          .from('player_listings')
+          .insert(data)
+          .select()
+          .single();
 
-    return PlayerListing.fromJson(response);
+      return PlayerListing.fromJson(response);
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Get my player listings
   Future<List<PlayerListing>> getMyListings() async {
-    final userId = SupabaseService.instance.currentUserId;
-    if (userId == null) throw Exception('Kullanıcı girişi gerekli');
+    try {
+      final userId = SupabaseService.instance.currentUserId;
+      if (userId == null) {
+        throw const AuthException(
+          message: 'Kullanıcı girişi gerekli',
+          code: 'NOT_AUTHENTICATED',
+        );
+      }
 
-    final response = await _supabase
-        .from('player_listings')
-        .select()
-        .eq('player_id', userId)
-        .order('available_start', ascending: false);
+      final response = await _supabase
+          .from('player_listings')
+          .select()
+          .eq('player_id', userId)
+          .order('available_start', ascending: false);
 
-    return (response as List)
-        .map((json) => PlayerListing.fromJson(json))
-        .toList();
+      return (response as List)
+          .map((json) => PlayerListing.fromJson(json))
+          .toList();
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
+  }
+
+  /// Get all active player listings
+  Future<List<PlayerListing>> getAllActive() async {
+    try {
+      final response = await _supabase
+          .from('player_listings')
+          .select()
+          .eq('status', 'OPEN')
+          .gte('available_end', DateTime.now().toIso8601String())
+          .order('available_start', ascending: true)
+          .limit(100);
+
+      return (response as List)
+          .map((json) => PlayerListing.fromJson(json))
+          .toList();
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Get player listing by ID
   Future<PlayerListing> getOne(String id) async {
-    final response = await _supabase
-        .from('player_listings')
-        .select()
-        .eq('id', id)
-        .single();
+    try {
+      final response = await _supabase
+          .from('player_listings')
+          .select()
+          .eq('id', id)
+          .single();
 
-    return PlayerListing.fromJson(response);
+      return PlayerListing.fromJson(response);
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Update player listing
   Future<PlayerListing> update(String id, Map<String, dynamic> data) async {
-    final response = await _supabase
-        .from('player_listings')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
+    try {
+      final response = await _supabase
+          .from('player_listings')
+          .update(data)
+          .eq('id', id)
+          .select()
+          .single();
 
-    return PlayerListing.fromJson(response);
+      return PlayerListing.fromJson(response);
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Cancel player listing
   Future<void> cancel(String id) async {
-    await _supabase
-        .from('player_listings')
-        .update({'status': 'CANCELED'})
-        .eq('id', id);
+    try {
+      await _supabase
+          .from('player_listings')
+          .update({'status': 'CANCELED'})
+          .eq('id', id);
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Get nearby players (alias for searchNearby)
@@ -108,38 +159,44 @@ class PlayerListingsRepository {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    // Use RPC function for nearby search
-    var response = await _supabase.rpc(
-      'nearby_players',
-      params: {'p_lat': lat, 'p_lng': lng, 'p_radius_km': radiusKm},
-    );
+    try {
+      // Use RPC function for nearby search
+      var response = await _supabase.rpc(
+        'nearby_players',
+        params: {'p_lat': lat, 'p_lng': lng, 'p_radius_km': radiusKm},
+      );
 
-    var players = (response as List)
-        .map((json) => PlayerListing.fromJson(json))
-        .toList();
-
-    // Apply additional filters
-    if (skillLevel != null) {
-      players = players.where((p) => p.skillLevel == skillLevel).toList();
-    }
-
-    if (positions != null && positions.isNotEmpty) {
-      players = players.where((p) {
-        return p.positions.any((pos) => positions.contains(pos));
-      }).toList();
-    }
-
-    if (startDate != null) {
-      players = players
-          .where((p) => p.availableStart.isAfter(startDate))
+      var players = (response as List)
+          .map((json) => PlayerListing.fromJson(json))
           .toList();
-    }
 
-    if (endDate != null) {
-      players = players.where((p) => p.availableEnd.isBefore(endDate)).toList();
-    }
+      // Apply additional filters
+      if (skillLevel != null) {
+        players = players.where((p) => p.skillLevel == skillLevel).toList();
+      }
 
-    return players;
+      if (positions != null && positions.isNotEmpty) {
+        players = players.where((p) {
+          return p.positions.any((pos) => positions.contains(pos));
+        }).toList();
+      }
+
+      if (startDate != null) {
+        players = players
+            .where((p) => p.availableStart.isAfter(startDate))
+            .toList();
+      }
+
+      if (endDate != null) {
+        players = players
+            .where((p) => p.availableEnd.isBefore(endDate))
+            .toList();
+      }
+
+      return players;
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 
   /// Get all open player listings (for explore)
@@ -147,16 +204,20 @@ class PlayerListingsRepository {
     int limit = 50,
     int offset = 0,
   }) async {
-    final response = await _supabase
-        .from('player_listings')
-        .select()
-        .eq('status', 'OPEN')
-        .gte('available_start', DateTime.now().toIso8601String())
-        .order('available_start', ascending: true)
-        .range(offset, offset + limit - 1);
+    try {
+      final response = await _supabase
+          .from('player_listings')
+          .select()
+          .eq('status', 'OPEN')
+          .gte('available_start', DateTime.now().toIso8601String())
+          .order('available_start', ascending: true)
+          .range(offset, offset + limit - 1);
 
-    return (response as List)
-        .map((json) => PlayerListing.fromJson(json))
-        .toList();
+      return (response as List)
+          .map((json) => PlayerListing.fromJson(json))
+          .toList();
+    } catch (e, stackTrace) {
+      throw ErrorHandler.handleError(e, stackTrace);
+    }
   }
 }

@@ -1,36 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:sahada_dev/core/theme/app_colors.dart';
 import 'package:sahada_dev/core/theme/app_radii.dart';
 import 'package:sahada_dev/core/widgets/glass_app_bar.dart';
 import 'package:sahada_dev/core/widgets/solid_card.dart';
 import 'package:sahada_dev/core/widgets/gradient_background.dart';
 import 'package:sahada_dev/core/widgets/gradient_button.dart';
+import 'package:sahada_dev/core/widgets/location_picker.dart';
+import 'package:sahada_dev/data/models/enums.dart';
+import 'package:sahada_dev/data/repositories/match_listings_repository.dart';
 
-class MatchListingCreateScreen extends StatefulWidget {
+class MatchListingCreateScreen extends ConsumerStatefulWidget {
   const MatchListingCreateScreen({super.key});
 
   @override
-  State<MatchListingCreateScreen> createState() =>
+  ConsumerState<MatchListingCreateScreen> createState() =>
       _MatchListingCreateScreenState();
 }
 
-class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
+class _MatchListingCreateScreenState
+    extends ConsumerState<MatchListingCreateScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  String _title = '';
-  String _description = '';
-  String _location = '';
+  // Text controllers - properly managed
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _locationController;
+  late final TextEditingController _durationController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _playersNeededController;
+
+  double _lat = 41.0082; // Default Istanbul
+  double _lng = 28.9784; // Default Istanbul
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  String _duration = '90';
-  String _price = '';
-  String _playersNeeded = '';
   String _skillLevel = 'Orta';
   String _fieldType = 'Halı Saha';
+  List<PositionType> _selectedPositions = [];
 
   final List<String> _skillLevels = ['Başlangıç', 'Orta', 'İyi', 'Profesyonel'];
   final List<String> _fieldTypes = ['Halı Saha', 'Çim Saha', 'Parke'];
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _descriptionController = TextEditingController();
+    _locationController = TextEditingController();
+    _durationController = TextEditingController(text: '90');
+    _priceController = TextEditingController();
+    _playersNeededController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    _durationController.dispose();
+    _priceController.dispose();
+    _playersNeededController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +95,7 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
                             label: 'Maç Başlığı',
                             hint: 'Örn: 5v5 Halı Saha Maçı',
                             icon: Icons.sports_soccer,
-                            onChanged: (value) => _title = value,
+                            controller: _titleController,
                           ),
                           const SizedBox(
                             height: 9.6,
@@ -72,7 +105,7 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
                             hint: 'Maç hakkında detaylı bilgi...',
                             icon: Icons.description_outlined,
                             maxLines: 4,
-                            onChanged: (value) => _description = value,
+                            controller: _descriptionController,
                           ),
                         ]),
                         const SizedBox(
@@ -83,7 +116,60 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
                             label: 'Saha Adı / Konum',
                             hint: 'Örn: Kadıköy Spor Kompleksi',
                             icon: Icons.location_on_outlined,
-                            onChanged: (value) => _location = value,
+                            controller: _locationController,
+                          ),
+                          const SizedBox(height: 9.6),
+                          GestureDetector(
+                            onTap: _showLocationPicker,
+                            child: Container(
+                              padding: const EdgeInsets.all(12.8),
+                              decoration: BoxDecoration(
+                                color: AppColors.glassTintLight,
+                                borderRadius: AppRadii.brMd,
+                                border: Border.all(
+                                  color: AppColors.glassBorderSoft,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.map_outlined,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 9.6),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Haritadan Konum Seç',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3.2),
+                                        Text(
+                                          '${_lat.toStringAsFixed(4)}, ${_lng.toStringAsFixed(4)}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: AppColors.textTertiary,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ]),
                         const SizedBox(
@@ -107,8 +193,7 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
                             hint: '90',
                             icon: Icons.timer_outlined,
                             keyboardType: TextInputType.number,
-                            initialValue: _duration,
-                            onChanged: (value) => _duration = value,
+                            controller: _durationController,
                           ),
                         ]),
                         const SizedBox(
@@ -142,8 +227,10 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
                             hint: '5',
                             icon: Icons.people_outline,
                             keyboardType: TextInputType.number,
-                            onChanged: (value) => _playersNeeded = value,
+                            controller: _playersNeededController,
                           ),
+                          const SizedBox(height: 9.6),
+                          _buildPositionSelector(),
                         ]),
                         const SizedBox(
                           height: 12.8,
@@ -154,7 +241,7 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
                             hint: '150',
                             icon: Icons.payments_outlined,
                             keyboardType: TextInputType.number,
-                            onChanged: (value) => _price = value,
+                            controller: _priceController,
                           ),
                         ]),
                         const SizedBox(
@@ -202,14 +289,77 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
     );
   }
 
+  Widget _buildPositionSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Aranan Pozisyonlar (Opsiyonel)',
+          style: GoogleFonts.inter(
+            fontSize: 9.6,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 6.4),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: PositionType.values.map((position) {
+            final isSelected = _selectedPositions.contains(position);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedPositions.remove(position);
+                  } else {
+                    _selectedPositions.add(position);
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: isSelected ? AppColors.gradientPrimary : null,
+                  color: isSelected ? null : AppColors.glassTintLight,
+                  borderRadius: AppRadii.brMd,
+                  border: Border.all(
+                    color: isSelected
+                        ? Colors.transparent
+                        : AppColors.glassBorderSoft,
+                  ),
+                ),
+                child: Text(
+                  position.displayName,
+                  style: GoogleFonts.inter(
+                    fontSize: 11.2,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? Colors.black : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Seçilen: ${_selectedPositions.isEmpty ? "Tümü" : _selectedPositions.map((p) => p.displayName).join(", ")}',
+          style: GoogleFonts.inter(fontSize: 8.8, color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTextField({
     required String label,
     required String hint,
     required IconData icon,
-    required ValueChanged<String> onChanged,
+    required TextEditingController controller,
     TextInputType? keyboardType,
     int maxLines = 1,
-    String? initialValue,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,12 +380,9 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
             border: Border.all(color: AppColors.glassBorderSoft),
           ),
           child: TextField(
-            onChanged: onChanged,
+            controller: controller,
             keyboardType: keyboardType,
             maxLines: maxLines,
-            controller: initialValue != null
-                ? TextEditingController(text: initialValue)
-                : null,
             style: GoogleFonts.inter(
               color: AppColors.textPrimary,
               fontSize: 11.2, // 20% reduction from 14px
@@ -437,10 +584,132 @@ class _MatchListingCreateScreenState extends State<MatchListingCreateScreen> {
     );
   }
 
-  void _handleSubmit() {
+  void _handleSubmit() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Implement create match listing
-      Navigator.pop(context);
+      // Validation
+      if (_selectedDate == null || _selectedTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen tarih ve saat seçin')),
+        );
+        return;
+      }
+
+      final title = _titleController.text.trim();
+      final location = _locationController.text.trim();
+      final playersNeeded = _playersNeededController.text.trim();
+
+      if (title.isEmpty || location.isEmpty || playersNeeded.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen tüm zorunlu alanları doldurun')),
+        );
+        return;
+      }
+
+      // Combine date and time
+      final startsAt = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+
+      // Map skill level to enum
+      SkillLevel skillLevel;
+      switch (_skillLevel) {
+        case 'Başlangıç':
+          skillLevel = SkillLevel.beginner;
+          break;
+        case 'Orta':
+          skillLevel = SkillLevel.intermediate;
+          break;
+        case 'İyi':
+        case 'Profesyonel':
+          skillLevel = SkillLevel.advanced;
+          break;
+        default:
+          skillLevel = SkillLevel.intermediate;
+      }
+
+      // Map field type to match format (simplified)
+      MatchFormat format;
+      final count = int.tryParse(playersNeeded) ?? 5;
+      if (count <= 5) {
+        format = MatchFormat.fiveVsFive;
+      } else if (count <= 6) {
+        format = MatchFormat.sixVsSix;
+      } else {
+        format = MatchFormat.sevenVsSeven;
+      }
+
+      try {
+        // Show loading
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('İlan oluşturuluyor...')),
+          );
+        }
+
+        final description = _descriptionController.text.trim();
+        final price = _priceController.text.trim();
+
+        // Create match listing
+        await ref.read(matchListingsRepositoryProvider).create({
+          'title': title,
+          'description': description.isNotEmpty ? description : null,
+          'pitch_name': location,
+          'lat': _lat,
+          'lng': _lng,
+          'starts_at': startsAt.toIso8601String(),
+          'format': format.toString().split('.').last,
+          'needed_count': count,
+          'needed_positions': _selectedPositions
+              .map((p) => p.name.toUpperCase())
+              .toList(),
+          'skill_level': skillLevel.toString().split('.').last,
+          'price_type': price.isNotEmpty ? 'fixed' : 'free',
+          'base_price': int.tryParse(price) ?? 0,
+          'negotiation_enabled': false,
+          'payment_method': 'cash',
+        });
+
+        if (mounted) {
+          // Invalidate explore listings to refresh
+          ref.invalidate(matchListingsRepositoryProvider);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('İlan başarıyla oluşturuldu!'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Hata: ${e.toString()}'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+      }
     }
+  }
+
+  void _showLocationPicker() {
+    showDialog(
+      context: context,
+      builder: (context) => LocationPicker(
+        initialLocation: LatLng(_lat, _lng),
+        onLocationSelected: (location) {
+          setState(() {
+            _lat = location.latitude;
+            _lng = location.longitude;
+          });
+        },
+      ),
+    );
   }
 }

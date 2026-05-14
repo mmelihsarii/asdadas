@@ -18,6 +18,5 @@ class LoginState with _$LoginState {
     @Default('') String otp,
     @Default(false) bool isLoading,
     String? error,
-    String? devCode,
   }) = _LoginState;
 }

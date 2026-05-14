@@ -12,6 +12,9 @@ class SupabaseService {
     return _instance!;
   }
 
+  static bool _isInitialized = false;
+  static bool get isInitialized => _isInitialized;
+
   /// Initialize Supabase
   /// Must be called after EnvConfig.init() and before runApp()
   static Future<void> initialize() async {
@@ -20,6 +23,7 @@ class SupabaseService {
       anonKey: EnvConfig.supabaseAnonKey,
       debug: EnvConfig.isDevelopment,
     );
+    _isInitialized = true;
   }
 
   /// Get Supabase client instance
@@ -38,11 +42,11 @@ class SupabaseService {
   RealtimeClient get realtime => client.realtime;
 
   /// Check if user is authenticated
-  bool get isAuthenticated => auth.currentUser != null;
+  bool get isAuthenticated => isInitialized && auth.currentUser != null;
 
   /// Get current user
-  User? get currentUser => auth.currentUser;
+  User? get currentUser => isInitialized ? auth.currentUser : null;
 
   /// Get current user ID
-  String? get currentUserId => auth.currentUser?.id;
+  String? get currentUserId => currentUser?.id;
 }

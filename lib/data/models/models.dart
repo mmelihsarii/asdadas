@@ -11,3 +11,4 @@ export 'chat_member_model.dart';
 export 'message_model.dart';
 export 'review_model.dart';
 export 'report_model.dart';
+export 'notification_model.dart';

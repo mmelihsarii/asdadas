@@ -470,7 +470,7 @@ void main() {
       bool wasPressed = false;
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Column(
               children: [
@@ -560,16 +560,13 @@ void main() {
       // **Validates: Requirement 3.7**
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Column(
               children: [
-                const GradientButton(onPressed: null, label: 'Disabled'),
-                const SizedBox(height: 16),
-                const GradientOutlinedButton(
-                  onPressed: null,
-                  label: 'Disabled',
-                ),
+                GradientButton(onPressed: null, label: 'Disabled'),
+                SizedBox(height: 16),
+                GradientOutlinedButton(onPressed: null, label: 'Disabled'),
               ],
             ),
           ),

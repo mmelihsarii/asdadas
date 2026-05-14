@@ -17,6 +17,9 @@ class GradientButton extends StatefulWidget {
     this.isLoading = false,
     this.icon,
     this.compact = false,
+    this.solidColor,
+    this.borderRadius,
+    this.boxShadow,
   });
 
   final VoidCallback? onPressed;
@@ -24,6 +27,9 @@ class GradientButton extends StatefulWidget {
   final bool isLoading;
   final IconData? icon;
   final bool compact;
+  final Color? solidColor;
+  final BorderRadius? borderRadius;
+  final List<BoxShadow>? boxShadow;
 
   @override
   State<GradientButton> createState() => _GradientButtonState();
@@ -50,13 +56,18 @@ class _GradientButtonState extends State<GradientButton> {
             vertical: widget.compact ? 13 : AppSpacing.md,
           ),
           decoration: BoxDecoration(
-            gradient: isEnabled
+            color: isEnabled ? widget.solidColor : null,
+            gradient: isEnabled && widget.solidColor == null
                 ? AppGradients.primaryCta
+                : isEnabled
+                ? null
                 : const LinearGradient(
                     colors: [Color(0xFF6B7280), Color(0xFF4B5563)],
                   ),
-            borderRadius: AppRadii.brMd,
-            boxShadow: isEnabled && !_isPressed ? AppShadows.glowLime : null,
+            borderRadius: widget.borderRadius ?? AppRadii.brMd,
+            boxShadow: isEnabled && !_isPressed
+                ? widget.boxShadow ?? AppShadows.glowLime
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

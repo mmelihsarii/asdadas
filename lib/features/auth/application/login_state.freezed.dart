@@ -26,7 +26,6 @@ mixin _$LoginState {
   String get otp => throw _privateConstructorUsedError;
   bool get isLoading => throw _privateConstructorUsedError;
   String? get error => throw _privateConstructorUsedError;
-  String? get devCode => throw _privateConstructorUsedError;
 
   /// Create a copy of LoginState
   /// with the given fields replaced by the non-null parameter values.
@@ -52,7 +51,6 @@ abstract class $LoginStateCopyWith<$Res> {
     String otp,
     bool isLoading,
     String? error,
-    String? devCode,
   });
 }
 
@@ -80,7 +78,6 @@ class _$LoginStateCopyWithImpl<$Res, $Val extends LoginState>
     Object? otp = null,
     Object? isLoading = null,
     Object? error = freezed,
-    Object? devCode = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -120,10 +117,6 @@ class _$LoginStateCopyWithImpl<$Res, $Val extends LoginState>
                 ? _value.error
                 : error // ignore: cast_nullable_to_non_nullable
                       as String?,
-            devCode: freezed == devCode
-                ? _value.devCode
-                : devCode // ignore: cast_nullable_to_non_nullable
-                      as String?,
           )
           as $Val,
     );
@@ -149,7 +142,6 @@ abstract class _$$LoginStateImplCopyWith<$Res>
     String otp,
     bool isLoading,
     String? error,
-    String? devCode,
   });
 }
 
@@ -176,7 +168,6 @@ class __$$LoginStateImplCopyWithImpl<$Res>
     Object? otp = null,
     Object? isLoading = null,
     Object? error = freezed,
-    Object? devCode = freezed,
   }) {
     return _then(
       _$LoginStateImpl(
@@ -216,10 +207,6 @@ class __$$LoginStateImplCopyWithImpl<$Res>
             ? _value.error
             : error // ignore: cast_nullable_to_non_nullable
                   as String?,
-        devCode: freezed == devCode
-            ? _value.devCode
-            : devCode // ignore: cast_nullable_to_non_nullable
-                  as String?,
       ),
     );
   }
@@ -238,7 +225,6 @@ class _$LoginStateImpl implements _LoginState {
     this.otp = '',
     this.isLoading = false,
     this.error,
-    this.devCode,
   });
 
   @override
@@ -267,12 +253,10 @@ class _$LoginStateImpl implements _LoginState {
   final bool isLoading;
   @override
   final String? error;
-  @override
-  final String? devCode;
 
   @override
   String toString() {
-    return 'LoginState(step: $step, authMode: $authMode, firstName: $firstName, lastName: $lastName, email: $email, phone: $phone, otp: $otp, isLoading: $isLoading, error: $error, devCode: $devCode)';
+    return 'LoginState(step: $step, authMode: $authMode, firstName: $firstName, lastName: $lastName, email: $email, phone: $phone, otp: $otp, isLoading: $isLoading, error: $error)';
   }
 
   @override
@@ -292,8 +276,7 @@ class _$LoginStateImpl implements _LoginState {
             (identical(other.otp, otp) || other.otp == otp) &&
             (identical(other.isLoading, isLoading) ||
                 other.isLoading == isLoading) &&
-            (identical(other.error, error) || other.error == error) &&
-            (identical(other.devCode, devCode) || other.devCode == devCode));
+            (identical(other.error, error) || other.error == error));
   }
 
   @override
@@ -308,7 +291,6 @@ class _$LoginStateImpl implements _LoginState {
     otp,
     isLoading,
     error,
-    devCode,
   );
 
   /// Create a copy of LoginState
@@ -331,7 +313,6 @@ abstract class _LoginState implements LoginState {
     final String otp,
     final bool isLoading,
     final String? error,
-    final String? devCode,
   }) = _$LoginStateImpl;
 
   @override
@@ -352,8 +333,6 @@ abstract class _LoginState implements LoginState {
   bool get isLoading;
   @override
   String? get error;
-  @override
-  String? get devCode;
 
   /// Create a copy of LoginState
   /// with the given fields replaced by the non-null parameter values.

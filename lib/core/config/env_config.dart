@@ -35,6 +35,13 @@ class EnvConfig {
   /// Check if running in development mode
   static bool get isDevelopment => appEnv == 'development';
 
+  /// Deep link used by Supabase email OTP / magic links.
+  ///
+  /// Add this value to Supabase Dashboard > Authentication > URL
+  /// Configuration > Redirect URLs.
+  static String get authRedirectUrl =>
+      dotenv.env['AUTH_REDIRECT_URL'] ?? 'sahada://auth-callback';
+
   /// Check if running in production mode
   static bool get isProduction => appEnv == 'production';
 

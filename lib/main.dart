@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/config/env_config.dart';
 import 'core/services/supabase_service.dart';
+// import 'core/utils/supabase_test.dart'; // Uncomment to run tests
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,9 +14,9 @@ void main() async {
   // Initialize Supabase
   await SupabaseService.initialize();
 
-  runApp(
-    const ProviderScope(
-      child: SahadaApp(),
-    ),
-  );
+  // 🧪 DEVELOPMENT: Supabase bağlantı testleri (opsiyonel)
+  // Uncomment to test Supabase connection on app start
+  // await SupabaseTest.runAllTests();
+
+  runApp(const ProviderScope(child: SahadaApp()));
 }

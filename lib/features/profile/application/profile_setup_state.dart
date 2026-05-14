@@ -1,11 +1,8 @@
 import 'dart:io';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import '../../../data/models/enums.dart';
 
 part 'profile_setup_state.freezed.dart';
-
-enum SkillLevel { beginner, intermediate, advanced }
-
-enum PositionType { goalkeeper, defender, midfielder, forward, any }
 
 @freezed
 class ProfileSetupState with _$ProfileSetupState {

@@ -151,7 +151,7 @@ class LoginScreen extends ConsumerWidget {
                 child: FractionallySizedBox(
                   widthFactor: 0.5,
                   child: Container(
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.primaryBright,
                       borderRadius: AppRadii.brSm,
                     ),
@@ -240,15 +240,19 @@ class LoginScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
         ],
 
-        // Submit button
-        GradientButton(
-          onPressed: state.isLoading
-              ? null
-              : () => notifier.handlePhoneSubmit(),
-          label: state.authMode == AuthMode.login
-              ? 'Giriş Kodu Gönder'
-              : 'Kayıt Ol ve Kod Gönder',
-          isLoading: state.isLoading,
+        Center(
+          child: GradientButton(
+            onPressed: state.isLoading
+                ? null
+                : () => notifier.handlePhoneSubmit(),
+            label: state.authMode == AuthMode.login
+                ? 'Giriş Kodu Gönder'
+                : 'Kayıt Ol ve Kod Gönder',
+            isLoading: state.isLoading,
+            solidColor: AppColors.primaryBright,
+            borderRadius: AppRadii.brSm,
+            boxShadow: const [],
+          ),
         ),
       ],
     );
@@ -325,70 +329,36 @@ class LoginScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 19.2), // 24 * 0.8 = 19.2
-        // Dev code display (if available)
-        if (state.devCode != null) ...[
-          Container(
-            padding: const EdgeInsets.all(9.6), // 12 * 0.8 = 9.6
-            decoration: BoxDecoration(
-              color: const Color(0xFFa3e635).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(9.6), // 12 * 0.8 = 9.6
-              border: Border.all(
-                color: const Color(0xFFa3e635).withValues(alpha: 0.2),
-              ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'GELİŞTİRİCİ MODU',
-                  style: GoogleFonts.inter(
-                    fontSize: 8, // 10 * 0.8 = 8
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFFa3e635).withValues(alpha: 0.6),
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 6.4), // 8 * 0.8 = 6.4
-                Text(
-                  state.devCode!,
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 16, // 20 * 0.8 = 16
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 3.2, // 4 * 0.8 = 3.2
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12.8), // 16 * 0.8 = 12.8
-        ],
-
         // Error message
         if (state.error != null) ...[
           _buildErrorMessage(state.error!),
           const SizedBox(height: 12.8), // 16 * 0.8 = 12.8
         ],
 
-        // Submit button
-        GradientButton(
-          onPressed: state.isLoading
-              ? null
-              : () async {
-                  final success = await notifier.handleOtpSubmit();
-                  if (success && context.mounted) {
-                    // Yeni kayıt ise profil oluşturma ekranına git
-                    if (state.authMode == AuthMode.signup) {
-                      context.go('/profile-setup');
-                    } else {
-                      // Giriş ise explore'a git
-                      context.go('/explore');
+        Center(
+          child: GradientButton(
+            onPressed: state.isLoading
+                ? null
+                : () async {
+                    final success = await notifier.handleOtpSubmit();
+                    if (success && context.mounted) {
+                      // Yeni kayıt ise profil oluşturma ekranına git
+                      if (state.authMode == AuthMode.signup) {
+                        context.go('/profile-setup');
+                      } else {
+                        // Giriş ise explore'a git
+                        context.go('/explore');
+                      }
                     }
-                  }
-                },
-          label: state.authMode == AuthMode.login
-              ? 'Sisteme Gir'
-              : 'Hesabı Oluştur',
-          isLoading: state.isLoading,
+                  },
+            label: state.authMode == AuthMode.login
+                ? 'Sisteme Gir'
+                : 'Hesabı Oluştur',
+            isLoading: state.isLoading,
+            solidColor: AppColors.primaryBright,
+            borderRadius: AppRadii.brSm,
+            boxShadow: const [],
+          ),
         ),
         const SizedBox(height: 9.6), // 12 * 0.8 = 9.6
         // Back button

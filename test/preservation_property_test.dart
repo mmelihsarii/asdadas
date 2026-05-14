@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sahada_dev/core/router/app_router.dart';
 import 'package:sahada_dev/core/theme/app_colors.dart';
 import 'package:sahada_dev/core/theme/glass_tokens.dart';
@@ -941,11 +940,9 @@ void main() {
       print('\n=== PRESERVATION TEST COVERAGE ===\n');
       preservationCoverage.forEach((category, tests) {
         print('$category:');
-        if (tests is Map) {
-          tests.forEach((test, status) {
-            print('  - $test: $status');
-          });
-        }
+        tests.forEach((test, status) {
+          print('  - $test: $status');
+        });
         print('');
       });
       print('=== END OF PRESERVATION COVERAGE ===\n');

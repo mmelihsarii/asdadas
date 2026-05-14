@@ -1,52 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sahada_dev/core/theme/app_colors.dart';
 import 'package:sahada_dev/core/theme/app_radii.dart';
 import 'package:sahada_dev/core/theme/glass_tokens.dart';
 import 'package:sahada_dev/core/widgets/glass_app_bar.dart';
 import 'package:sahada_dev/core/widgets/glass_card.dart';
-import 'package:sahada_dev/core/widgets/solid_card.dart';
-import 'package:sahada_dev/core/widgets/gradient_avatar_ring.dart';
 import 'package:sahada_dev/core/widgets/gradient_background.dart';
 import 'package:sahada_dev/core/widgets/gradient_button.dart';
-import 'package:sahada_dev/core/widgets/gradient_outlined_button.dart';
+import 'package:sahada_dev/features/match_listings/application/match_detail_provider.dart';
+import 'package:sahada_dev/data/repositories/participations_repository.dart';
 
-class MatchListingDetailScreen extends StatelessWidget {
+class MatchListingDetailScreen extends ConsumerWidget {
   final String matchId;
 
   const MatchListingDetailScreen({super.key, required this.matchId});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: Fetch real data from provider
-    final mockMatch = {
-      'id': matchId,
-      'title': '5v5 Halı Saha Maçı',
-      'description':
-          'Kadıköy\'de düzenlenecek halı saha maçımıza katılmak isteyen oyuncular arıyoruz. Seviye orta-iyi arası.',
-      'location': 'Kadıköy Spor Kompleksi',
-      'address': 'Caferağa Mah. Moda Cad. No:123 Kadıköy/İstanbul',
-      'date': '15 Mayıs 2026',
-      'time': '19:00',
-      'duration': '90 dakika',
-      'price': '₺150',
-      'pricePerPerson': '₺30',
-      'playersNeeded': 3,
-      'totalPlayers': 10,
-      'skillLevel': 'Orta-İyi',
-      'fieldType': 'Halı Saha',
-      'organizer': {
-        'name': 'Mehmet Demir',
-        'rating': 4.8,
-        'matchesOrganized': 24,
-        'avatarUrl': null,
-      },
-      'joinedPlayers': [
-        {'name': 'Ali Yılmaz', 'position': 'Forvet', 'avatarUrl': null},
-        {'name': 'Veli Kaya', 'position': 'Defans', 'avatarUrl': null},
-        {'name': 'Ahmet Can', 'position': 'Kaleci', 'avatarUrl': null},
-      ],
-    };
+  Widget build(BuildContext context, WidgetRef ref) {
+    final matchAsync = ref.watch(matchDetailProvider(matchId));
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -59,134 +31,113 @@ class MatchListingDetailScreen extends StatelessWidget {
       ),
       body: GradientBackground(
         child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(
-                    12.8,
-                  ), // 20% reduction from 16 (AppSpacing.lg)
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(mockMatch),
-                      const SizedBox(
-                        height: 12.8,
-                      ), // 20% reduction from 16 (AppSpacing.lg)
-                      _buildInfoCard(mockMatch),
-                      const SizedBox(
-                        height: 12.8,
-                      ), // 20% reduction from 16 (AppSpacing.lg)
-                      _buildOrganizerCard(
-                        mockMatch['organizer'] as Map<String, dynamic>,
+          child: matchAsync.when(
+            data: (match) {
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(match),
+                          const SizedBox(height: 12.8),
+                          _buildInfoCard(match),
+                          const SizedBox(height: 12.8),
+                          _buildActionButton(context, ref, match),
+                        ],
                       ),
-                      const SizedBox(
-                        height: 12.8,
-                      ), // 20% reduction from 16 (AppSpacing.lg)
-                      _buildJoinedPlayersCard(mockMatch),
-                      const SizedBox(
-                        height: 12.8,
-                      ), // 20% reduction from 16 (AppSpacing.lg)
-                      _buildDescriptionCard(mockMatch),
-                      const SizedBox(
-                        height: 12.8,
-                      ), // 20% reduction from 16 (AppSpacing.lg)
-                      _buildLocationCard(mockMatch),
-                      const SizedBox(height: 80), // 20% reduction from 100
-                    ],
+                    ),
                   ),
-                ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppColors.danger,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Maç detayı yüklenemedi',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomBar(context, mockMatch),
     );
   }
 
-  Widget _buildHeader(Map<String, dynamic> match) {
+  Widget _buildHeader(match) {
+    final title = match.title ?? 'Maç';
+    final status = match.status ?? 'OPEN';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          match['title'],
+          title,
           style: GoogleFonts.inter(
-            fontSize: 22.4, // 20% reduction from 28
+            fontSize: 22.4,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 9.6, // 20% reduction from 12 (AppSpacing.md)
-                vertical: 3.2, // 20% reduction from 4 (AppSpacing.xs)
-              ),
-              decoration: const BoxDecoration(
-                gradient: AppColors.gradientPrimary,
-                borderRadius: AppRadii.brSm,
-              ),
-              child: Text(
-                '${match['playersNeeded']} Oyuncu Aranıyor',
-                style: GoogleFonts.inter(
-                  fontSize: 9.6, // 20% reduction from 12
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
+        const SizedBox(height: 9.6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9.6, vertical: 3.2),
+          decoration: const BoxDecoration(
+            gradient: AppColors.gradientPrimary,
+            borderRadius: AppRadii.brSm,
+          ),
+          child: Text(
+            status,
+            style: GoogleFonts.inter(
+              fontSize: 9.6,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
-            const SizedBox(width: 6.4), // 20% reduction from 8 (AppSpacing.sm)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 9.6, // 20% reduction from 12 (AppSpacing.md)
-                vertical: 3.2, // 20% reduction from 4 (AppSpacing.xs)
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.glassTintLight,
-                borderRadius: AppRadii.brSm,
-                border: Border.all(color: AppColors.glassBorderSoft),
-              ),
-              child: Text(
-                match['skillLevel'],
-                style: GoogleFonts.inter(
-                  fontSize: 9.6, // 20% reduction from 12
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildInfoCard(Map<String, dynamic> match) {
+  Widget _buildInfoCard(match) {
+    final city = match.city ?? '';
+    final district = match.district ?? '';
+    final locationName = match.locationName ?? '';
+
     return GlassCard(
-      intensity: GlassIntensity.regular, // Primary content
+      intensity: GlassIntensity.regular,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoRow(Icons.calendar_today_outlined, 'Tarih', match['date']),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
           _buildInfoRow(
-            Icons.access_time_outlined,
-            'Saat',
-            '${match['time']} (${match['duration']})',
+            Icons.location_on_outlined,
+            'Konum',
+            '$city, $district',
           ),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
+          const SizedBox(height: 9.6),
+          _buildInfoRow(Icons.place_outlined, 'Saha', locationName),
+          const SizedBox(height: 9.6),
           _buildInfoRow(
-            Icons.sports_soccer_outlined,
-            'Saha Tipi',
-            match['fieldType'],
-          ),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
-          _buildInfoRow(
-            Icons.payments_outlined,
-            'Ücret',
-            '${match['price']} (Kişi başı ${match['pricePerPerson']})',
+            Icons.people_outline,
+            'Aranan Oyuncu',
+            '${match.neededPlayers ?? 0}',
           ),
         ],
       ),
@@ -196,21 +147,8 @@ class MatchListingDetailScreen extends StatelessWidget {
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(
-            6.4,
-          ), // 20% reduction from 8 (AppSpacing.sm)
-          decoration: const BoxDecoration(
-            color: AppColors.glassTintLight,
-            borderRadius: AppRadii.brSm,
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: AppColors.textTertiary,
-          ), // 20% reduction from 20
-        ),
-        const SizedBox(width: 9.6), // 20% reduction from 12 (AppSpacing.md)
+        Icon(icon, size: 16, color: AppColors.textTertiary),
+        const SizedBox(width: 9.6),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,19 +156,15 @@ class MatchListingDetailScreen extends StatelessWidget {
               Text(
                 label,
                 style: GoogleFonts.inter(
-                  fontSize: 8.8, // 20% reduction from 11
+                  fontSize: 8.8,
                   color: AppColors.textMuted,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
                 ),
               ),
-              const SizedBox(
-                height: 1.6,
-              ), // 20% reduction from 2 (AppSpacing.xxs)
               Text(
                 value,
                 style: GoogleFonts.inter(
-                  fontSize: 11.2, // 20% reduction from 14
+                  fontSize: 11.2,
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -242,405 +176,28 @@ class MatchListingDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOrganizerCard(Map<String, dynamic> organizer) {
-    return GlassCard(
-      intensity: GlassIntensity.subtle, // Secondary content
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ORGANİZATÖR',
-            style: GoogleFonts.inter(
-              fontSize: 8.8, // 20% reduction from 11
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMuted,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
-          Row(
-            children: [
-              GradientAvatarRing(
-                imageUrl: organizer['avatarUrl'],
-                size: 48, // 20% reduction from 60
-                initials: organizer['name'][0],
-              ),
-              const SizedBox(
-                width: 9.6,
-              ), // 20% reduction from 12 (AppSpacing.md)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      organizer['name'],
-                      style: GoogleFonts.inter(
-                        fontSize: 12.8, // 20% reduction from 16
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 3.2,
-                    ), // 20% reduction from 4 (AppSpacing.xs)
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          size: 12.8, // 20% reduction from 16
-                          color: AppColors.primaryBright,
-                        ),
-                        const SizedBox(
-                          width: 1.6,
-                        ), // 20% reduction from 2 (AppSpacing.xxs)
-                        Text(
-                          '${organizer['rating']}',
-                          style: GoogleFonts.inter(
-                            fontSize: 11.2, // 20% reduction from 14
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(
-                          width: 6.4,
-                        ), // 20% reduction from 8 (AppSpacing.sm)
-                        Text(
-                          '${organizer['matchesOrganized']} maç',
-                          style: GoogleFonts.inter(
-                            fontSize: 9.6, // 20% reduction from 12
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  // TODO: Navigate to organizer profile
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(
-                    6.4,
-                  ), // 20% reduction from 8 (AppSpacing.sm)
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.gradientPrimary,
-                    borderRadius: AppRadii.brSm,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward,
-                    color: Colors.black,
-                    size: 16, // 20% reduction from 20
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildActionButton(BuildContext context, WidgetRef ref, match) {
+    return GradientButton(
+      onPressed: () async {
+        try {
+          await ref
+              .read(participationsRepositoryProvider)
+              .create(matchId: match.id, agreedAmount: 0);
 
-  Widget _buildJoinedPlayersCard(Map<String, dynamic> match) {
-    final players = match['joinedPlayers'] as List;
-    final totalPlayers = match['totalPlayers'] as int;
-    final joinedCount = players.length;
-
-    return GlassCard(
-      intensity: GlassIntensity.subtle, // Secondary content
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'KATILAN OYUNCULAR',
-                style: GoogleFonts.inter(
-                  fontSize: 8.8, // 20% reduction from 11
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textMuted,
-                  letterSpacing: 2,
-                ),
-              ),
-              Text(
-                '$joinedCount/$totalPlayers',
-                style: GoogleFonts.inter(
-                  fontSize: 11.2, // 20% reduction from 14
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryBright,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
-          ...players.map(
-            (player) => Padding(
-              padding: const EdgeInsets.only(
-                bottom: 6.4,
-              ), // 20% reduction from 8 (AppSpacing.sm)
-              child: _buildPlayerRow(player),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlayerRow(Map<String, dynamic> player) {
-    return Row(
-      children: [
-        GradientAvatarRing(
-          imageUrl: player['avatarUrl'],
-          size: 32, // 20% reduction from 40
-          initials: player['name'][0],
-        ),
-        const SizedBox(width: 9.6), // 20% reduction from 12 (AppSpacing.md)
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                player['name'],
-                style: GoogleFonts.inter(
-                  fontSize: 11.2, // 20% reduction from 14
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                player['position'],
-                style: GoogleFonts.inter(
-                  fontSize: 9.6, // 20% reduction from 12
-                  color: AppColors.textTertiary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDescriptionCard(Map<String, dynamic> match) {
-    return SolidCard(
-      // Tertiary content
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'AÇIKLAMA',
-            style: GoogleFonts.inter(
-              fontSize: 8.8, // 20% reduction from 11
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMuted,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
-          Text(
-            match['description'],
-            style: GoogleFonts.inter(
-              fontSize: 11.2, // 20% reduction from 14
-              color: AppColors.textSecondary,
-              height: 1.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationCard(Map<String, dynamic> match) {
-    return SolidCard(
-      // Tertiary content
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'KONUM',
-            style: GoogleFonts.inter(
-              fontSize: 8.8, // 20% reduction from 11
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMuted,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on,
-                color: AppColors.primaryBright,
-                size: 16, // 20% reduction from 20
-              ),
-              const SizedBox(
-                width: 6.4,
-              ), // 20% reduction from 8 (AppSpacing.sm)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      match['location'],
-                      style: GoogleFonts.inter(
-                        fontSize: 11.2, // 20% reduction from 14
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 1.6,
-                    ), // 20% reduction from 2 (AppSpacing.xxs)
-                    Text(
-                      match['address'],
-                      style: GoogleFonts.inter(
-                        fontSize: 9.6, // 20% reduction from 12
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9.6), // 20% reduction from 12 (AppSpacing.md)
-          GradientOutlinedButton(
-            onPressed: () {
-              // TODO: Open in maps
-            },
-            label: 'Haritada Göster',
-            icon: Icons.map_outlined,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar(BuildContext context, Map<String, dynamic> match) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 12.8, // 20% reduction from 16 (AppSpacing.lg)
-        right: 12.8, // 20% reduction from 16 (AppSpacing.lg)
-        top: 9.6, // 20% reduction from 12 (AppSpacing.md)
-        bottom:
-            MediaQuery.of(context).padding.bottom +
-            9.6, // 20% reduction from 12 (AppSpacing.md)
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundDark.withOpacity(0.95),
-        border: const Border(
-          top: BorderSide(color: AppColors.glassBorderSoft, width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Kişi Başı',
-                  style: GoogleFonts.inter(
-                    fontSize: 8.8, // 20% reduction from 11
-                    color: AppColors.textMuted,
-                  ),
-                ),
-                Text(
-                  match['pricePerPerson'],
-                  style: GoogleFonts.inter(
-                    fontSize: 19.2, // 20% reduction from 24
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: GradientButton(
-              onPressed: () {
-                _showJoinDialog(context);
-              },
-              label: 'Katıl',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showJoinDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: GlassCard(
-          intensity: GlassIntensity.regular, // Overlay - Tier 1
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.sports_soccer,
-                size: 38.4, // 20% reduction from 48
-                color: AppColors.primaryBright,
-              ),
-              const SizedBox(
-                height: 12.8,
-              ), // 20% reduction from 16 (AppSpacing.lg)
-              Text(
-                'Maça Katıl',
-                style: GoogleFonts.inter(
-                  fontSize: 16, // 20% reduction from 20
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(
-                height: 6.4,
-              ), // 20% reduction from 8 (AppSpacing.sm)
-              Text(
-                'Bu maça katılmak istediğinize emin misiniz?',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 11.2, // 20% reduction from 14
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(
-                height: 16,
-              ), // 20% reduction from 20 (AppSpacing.xl)
-              Row(
-                children: [
-                  Expanded(
-                    child: GradientOutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      label: 'İptal',
-                      compact: true,
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 9.6,
-                  ), // 20% reduction from 12 (AppSpacing.md)
-                  Expanded(
-                    child: GradientButton(
-                      onPressed: () {
-                        // TODO: Implement join match
-                        Navigator.pop(context);
-                      },
-                      label: 'Katıl',
-                      compact: true,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Maça katıldınız!')));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Hata: $e')));
+          }
+        }
+      },
+      label: 'Maça Katıl',
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sahada_dev/core/services/storage_service.dart';
 import 'package:sahada_dev/data/repositories/users_repository.dart';
+import 'package:sahada_dev/data/models/enums.dart';
 import 'package:sahada_dev/features/profile/application/profile_setup_state.dart';
 
 final profileSetupNotifierProvider =
@@ -105,29 +106,6 @@ class ProfileSetupNotifier extends StateNotifier<ProfileSetupState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // DEVELOPMENT MODE - Mock user creation
-      print('═══════════════════════════════════════════════════');
-      print('🔧 DEVELOPMENT MODE - Profile Setup (Mock)');
-      print('═══════════════════════════════════════════════════');
-      print('Display Name: ${state.displayName.trim()}');
-      print('Birth Year: ${state.birthDate!.year}');
-      print('Skill Level: ${state.skillLevel!.name}');
-      print(
-        'Positions: ${state.selectedPositions.map((p) => p.name).join(", ")}',
-      );
-      print('Home Location: ${state.homeLat}, ${state.homeLng}');
-      print('═══════════════════════════════════════════════════');
-      print('✅ Profile created successfully (DEV MODE)');
-      print('═══════════════════════════════════════════════════');
-
-      // Simulate async operation
-      await Future.delayed(const Duration(seconds: 1));
-
-      state = state.copyWith(isLoading: false);
-      return true;
-
-      // REAL IMPLEMENTATION (commented out for dev mode)
-      /*
       // Get current user
       final currentUser = await _usersRepository.getCurrentUser();
       if (currentUser == null) {
@@ -159,12 +137,13 @@ class ProfileSetupNotifier extends StateNotifier<ProfileSetupState> {
       // Create user_profile entry
       await _usersRepository.upsertUserProfile({
         'skill_level': state.skillLevel!.name.toUpperCase(),
-        'positions': state.selectedPositions.map((p) => p.name.toUpperCase()).toList(),
+        'positions': state.selectedPositions
+            .map((p) => p.name.toUpperCase())
+            .toList(),
       });
 
       state = state.copyWith(isLoading: false);
       return true;
-      */
     } catch (e) {
       state = state.copyWith(
         error: 'Güncelleme başarısız: ${e.toString()}',
